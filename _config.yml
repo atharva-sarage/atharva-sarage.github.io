@@ -28,6 +28,10 @@ nav:
   - title: Music
     url: /Music/
   - title: Projects
-    url: /projects/  
+    url: /projects/
+  - title: Questions
+    url: /questions/
+  - title: PaperShelf
+    url: /papershelf/ 
   
 
