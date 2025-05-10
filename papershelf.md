@@ -66,3 +66,77 @@ END
  1. Slab Allocator Deep dive week, one of my teammates implemented a slab allocator and that led to me reading their code 
     and also see how slab allocators work in linux.
 1.  [Chapter 8 Slab Allocator](https://www.kernel.org/doc/gorman/html/understand/understand011.html)
+
+### Object Caching
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define ITERATIONS 1000
+
+typedef struct {
+    int id;
+    char name[256];
+    double values[128];
+} MyStruct;
+
+int main() {
+    clock_t start, end;
+    double time_malloc_free, time_memset_reuse;
+
+    // ==== CASE 1: malloc + free each time ====
+    start = clock();
+    for (int i = 0; i < ITERATIONS; ++i) {
+        MyStruct *obj = (MyStruct *)malloc(sizeof(MyStruct));
+        if (!obj) {
+            fprintf(stderr, "malloc failed\n");
+            return 1;
+        }
+        obj->id = i;  // Simulate some usage
+        free(obj);
+    }
+    end = clock();
+    time_malloc_free = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time with malloc + free each time: %f seconds\n", time_malloc_free);
+
+    // ==== CASE 2: allocate once, reuse with memset ====
+    MyStruct *obj = (MyStruct *)malloc(sizeof(MyStruct));
+    if (!obj) {
+        fprintf(stderr, "malloc failed\n");
+        return 1;
+    }
+
+    start = clock();
+    for (int i = 0; i < ITERATIONS; ++i) {
+        memset(obj, 0, sizeof(MyStruct));  // Reset fields
+        obj->id = i;  // Simulate some usage
+    }
+    end = clock();
+    time_memset_reuse = ((double)(end - start)) / CLOCKS_PER_SEC;
+    printf("Time with single malloc + memset reuse: %f seconds\n", time_memset_reuse);
+
+    free(obj);
+    return 0;
+}
+```
+
+```
+Time with malloc + free each time: 0.000226 seconds
+Time with single malloc + memset reuse: 0.000046 seconds
+```
+
+### Slab Allocator Implementation
+
+![alt text](images/slab_allocator_1.png)
+-> Unix Internals The new frontiers - Uresh Vahalia
+
+Notice the freelist pointer at the end of every block.
+```c
+// Get the address of the freelist linkage stored at the end of the buffer
+static inline void** get_freelist_linkage(void* buffer) {
+    return (void**)((uint8_t*)buffer + BUFFER_SIZE - sizeof(void*));
+}
+```
