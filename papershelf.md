@@ -8,7 +8,7 @@ permalink: /papershelf/
 
 [Recursive MakeConsidered Harmful](https://www.cse.iitd.ac.in/~sbansal/csp301/auug97.pdf)
 
-## Key Points
+### Key Points
 
 
 ### Sourcing a file.
@@ -130,7 +130,7 @@ Time with single malloc + memset reuse: 0.000046 seconds
 
 ### Slab Allocator Implementation
 
-![alt text](images/slab_allocator_1.png)
+![slab allocator diagram](images/slab_allocator_1.png)
 -> Unix Internals The new frontiers - Uresh Vahalia
 
 Notice the freelist pointer at the end of every block.
@@ -140,3 +140,5 @@ static inline void** get_freelist_linkage(void* buffer) {
     return (void**)((uint8_t*)buffer + BUFFER_SIZE - sizeof(void*));
 }
 ```
+
+![slab allocator colouring](images/slab_allocator_colouring.jpg)
