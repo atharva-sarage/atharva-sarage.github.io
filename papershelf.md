@@ -142,3 +142,83 @@ static inline void** get_freelist_linkage(void* buffer) {
 ```
 
 ![slab allocator colouring](images/slab_allocator_colouring.jpg)
+
+
+## 10/05/2025
+
+Per CPU Slab Allocator (In Progress)
+
+[Extending the Slab Allocator to Many CPUs and Arbitrary Resources](https://github.com/tpn/pdfs/blob/master/Magazines%20and%20Vmem-%20Extending%20the%20Slab%20Allocator%20to%20Many%20CPUs%20and%20Arbitrary%20Resources.pdf)
+
+## 17/05/2025
+
+One of our teams presented the new LB which uses XDP as its core.
+[xDP](https://raw.githubusercontent.com/tohojo/xdp-paper/master/xdp-the-express-data-path.pdf)
+
+
+1. While XDP allows packet processing to move into the operating
+ system for maximum performance, it also allows the programs
+ loaded into the kernel to selectively redirect packets to a special
+ user-space socket type, which bypasses the normal networking
+ stack, and can even operate in a zero-copy mode to further lower
+ the overhead.
+
+ ![XDP Data path](images/xdpdatapath.png)
+
+ 1. The infrastructure to execute the program is contained in the kernel as a library function,
+    which means that the program is executed directly in the device driver, without context
+    switching to userspace. (Green box)
+
+ 1. The program is executed at the earliest possible moment after a packet is received from
+    the hardware, before the kernel allocates its per-packet sk_buff data
+    structure or performs any parsing of the packet.
+
+ 1. After parsing the packet data, the XDP program can use the
+ context object to read metadata fields associated with the packet,
+ describing the interface and receive queue the packet came from, 
+
+ 1. The context object also gives access to a special memory area,
+ located adjacent in memory to the packet data. The XDP program
+ can use this memory to attach its own metadata to the packet,
+ which will be carried with it as it traverses the system.
+
+ 1. ALso make use of persistent bpf maps.
+ 
+ 1. Can do any transformation on the packet.
+
+ ```
+ [Network Hardware]
+        │
+        ▼
+[NIC receives packet]
+        │
+        ▼
+[Hardware IRQ or NAPI polling]
+        │
+        ▼
+[NIC Driver (in Kernel)]
+        │
+        ├── XDP Program Attached to thc NIC?
+        │       │
+        │       ├── Yes ─► [Run eBPF XDP Program (in kernel)]
+        │       │             │
+        │       │             ├── XDP_DROP  ──► Drop packet (early exit)
+        │       │             ├── XDP_TX    ──► Send back out same NIC
+        │       │             ├── XDP_REDIRECT ─► Send to other interface or CPU
+        │       │             └── XDP_PASS  ──► Continue normal processing
+        │       │
+        │       └── No ──────► Continue
+        │
+        ▼
+[Allocate sk_buff (socket buffer)]
+        │
+        ▼
+[Pass sk_buff to Kernel Networking Stack]
+        │
+        ├── Netfilter / iptables
+        ├── IP layer
+        ├── TCP/UDP
+        └── Socket receive queue
+        ▼
+[Userspace reads packet via recv()/poll() etc.]
+ ```
